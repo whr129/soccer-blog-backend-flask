@@ -187,7 +187,7 @@ def query_user_info():
 
 @user.route("/getUserList", methods=["POST"])
 @login_required
-@owner_required
+# @owner_required
 def get_user_list():
     page_num = request.form.get("pageNum")
     page_size = request.form.get("pageSize")

@@ -1,11 +1,11 @@
 from soccer_app.group.models import Group
-from flask import request, render_template, redirect, url_for, Blueprint, jsonify
+from flask import request, render_template, redirect, url_for, Blueprint, jsonify, session
 from soccer_app.user.utils import login_required, all_admin_required, owner_required
 from soccer_app.app import db
 from snowflake import SnowflakeGenerator
 from sqlalchemy import update,select,func
 from soccer_app.group.utils import add_group_role
-from soccer_app.user.models import Role, UserRole
+from soccer_app.user.models import Role, UserRole, User
 gen = SnowflakeGenerator(42)
 
 group = Blueprint('group', __name__)
