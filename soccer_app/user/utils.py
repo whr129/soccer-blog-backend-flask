@@ -35,9 +35,9 @@ def owner_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         user_id = request.args.get("userId")
-        group_code = request.args.get("code")
+        group_code = request.form.get("code")
         current_user_role_list = User.get_role_list_parse(session[f"{user_id}"])
-        if "ALL-ADMIN" or f"{group_code}-A" in current_user_role_list:
+        if ("ALL-ADMIN" or f"{group_code}-A") in current_user_role_list:
             return func(*args, **kwargs)
         else:
             return jsonify({"code": 500, "data": "", "message": "unauthorized"})
