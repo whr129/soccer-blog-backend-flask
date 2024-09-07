@@ -3,11 +3,12 @@ from soccer_app.app import db
 from soccer_app.user.models import User, Role, UserRole
 # from flask_login import current_user, login_required, login_user, logout_user
 from flask_bcrypt import Bcrypt
-from sqlalchemy import select, update, bindparam, insert
+from sqlalchemy import select, update, bindparam, insert, func
 from snowflake import SnowflakeGenerator
 import jwt
 from soccer_app.user.utils import login_required, all_admin_required, role_id_to_list, add_role_to_list
 from soccer_app.comment.models import MainPost, SubPost
+from soccer_app.comment.utils import owner_required
 
 gen = SnowflakeGenerator(42)
 
@@ -35,7 +36,7 @@ def register():
     )
     db.session.add(user)
     db.session.commit()
-    return jsonify({"code": 200, "data": user.id, "message": "successfully register"})
+    return jsonify({"code": 200, "data": "", "message": "successfully register"})
 
 @user.route("/login", methods=["POST"])
 def log_in():
@@ -61,7 +62,7 @@ def log_in():
 def log_out():
     user_id = request.args.get("userId")
     session.pop(f"{user_id}", default=None)
-    return jsonify({"code": "200", "data": "", "message": "successfully log out"})
+    return jsonify({"code": 200, "data": "", "message": "successfully log out"})
 
 @user.route("/addRoleToUser", methods=["POST"])
 @login_required
@@ -85,7 +86,7 @@ def add_role_to_user():
         current_user = row.User
         session[f"{user_id}"] = User.to_dict(current_user)
 
-    return jsonify({"code": "200", "data": "", "message": "successfully add new role to user"})
+    return jsonify({"code": 200, "data": "", "message": "successfully add new role to user"})
 
 @user.route("/changeUserStatus", methods=["POST"])
 @login_required
@@ -96,7 +97,7 @@ def change_user_status():
     query = update(User).where(User.id == user_id).values(is_active=is_active)
     db.session.execute(query)
     db.session.commit()
-    return jsonify({"code": "200", "data": "", "message": "successfully change the status of a user"})
+    return jsonify({"code": 200, "data": "", "message": "successfully change the status of a user"})
 
 @user.route("/editUserInfo", methods=["POST"])
 @login_required
@@ -124,14 +125,21 @@ def edit_user_info():
     db.session.execute(query_for_main_post)
     db.session.execute(query_for_sub_post)
     db.session.commit()
-    return jsonify({"code": "200", "data": "", "message": "successfully edit the user baseinfo"})
+    return jsonify({"code": 200, "data": "", "message": "successfully edit the user baseinfo"})
 
 @user.route("/editUserRoles", methods=["POST"])
 @login_required
 @all_admin_required
 def edit_user_roles():
     user_id = request.form.get("userId")
-    new_role_list = request.form.getlist("roles")
+    new_role_list = []
+    i = 0
+    while True:
+        role = request.form.get(f'roles[{i}]')
+        if role is None:
+            break
+        new_role_list.append(role)
+        i += 1
     get_query = select(User).where(User.id == user_id)
     user_row = db.session.execute(get_query).first()
     current_user = user_row.User
@@ -164,34 +172,59 @@ def edit_user_roles():
             [*add_role_list_for_insert]
         )
     db.session.commit()
-    return jsonify({"code": "200", "data": "", "message": "successfully edit the user roles"})
+    return jsonify({"code": 200, "data": new_role_list, "message": "successfully edit the user roles"})
 
 @user.route("/queryUserInfo", methods=["POST"])
 @login_required
 def query_user_info():
     user_id = request.args.get("userId")
     current_user = User.data_parse(session[f"{user_id}"])
-    return jsonify({"code": "200", "data": {
+    return jsonify({"code": 200, "data": {
         "username" : current_user.username,
         "email": current_user.email,
+        "roles": User.get_role_list_parse(session[f"{user_id}"])
     }, "message": "successfully query user info"})
 
 @user.route("/getUserList", methods=["POST"])
 @login_required
-@all_admin_required
+@owner_required
 def get_user_list():
     page_num = request.form.get("pageNum")
     page_size = request.form.get("pageSize")
-
-    query = select(User).where(User.is_active == 0).offset((int(page_num) - 1) * int(page_size)).limit(page_size).order_by(User.create_time)
+    query_count = select(func.count()).select_from(User);
+    user_count = db.session.execute(query_count).first();
+    if page_num == None and page_size == None:
+        query = select(User).order_by(User.create_time)
+    else:
+        query = select(User).offset((int(page_num) - 1) * int(page_size)).limit(page_size).order_by(User.create_time)
     user_rows = db.session.execute(query).all()
     user_list = []
     for user_row in user_rows:
         current_user = user_row.User
         user_detail = {
-            "id": current_user.id,
+            "id": str(current_user.id),
             "email": current_user.email,
-            "userName": current_user.username
+            "userName": current_user.username,
+            "status": current_user.is_active,
+            "roles": current_user.get_active_roles()
         }
         user_list.append(user_detail)
-    return jsonify({"code": "200", "data": user_list, "message": "successfully get the user list"})
+    return jsonify({"code": 200, "data": {"totalNum": user_count.count, "userList": user_list}, "message": "successfully get the user list"})
+
+@user.route("/queryRoleList", methods=["POST"])
+@login_required
+@all_admin_required
+def query_role_list():
+    query = select(Role)
+    role_list_rows = db.session.execute(query).all()
+    role_list = []
+    for role_row in role_list_rows:
+        role = role_row.Role
+        new_role = {
+            "id": str(role.id),
+            "code": role.code,
+            "label": role.code,
+            "value": str(role.id)
+        }
+        role_list.append(new_role)
+    return jsonify({"code": 200, "data": role_list, "message": "successfully get the user list"})

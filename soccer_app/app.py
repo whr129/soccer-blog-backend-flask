@@ -18,7 +18,7 @@ db = SQLAlchemy(model_class=Base)
 def create_app():
     app = Flask(__name__)
 
-    CORS(app)
+    CORS(app, supports_credentials=True)
     # Details on the Secret Key: https://flask.palletsprojects.com/en/3.0.x/config/#SECRET_KEY
     # NOTE: The secret key is used to cryptographically-sign the cookies used for storing
     #       the session identifier.

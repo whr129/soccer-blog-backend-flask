@@ -11,6 +11,7 @@ class MainPost(db.Model):
     id = db.Column(BIGINT, primary_key=True, nullable=False, comment='main post Id')
     user_name = db.Column(String(255), nullable=False)
     user_id = db.Column(BIGINT, nullable=False)
+    group_id = db.Column(BIGINT, db.ForeignKey("group.id"))
     create_time = db.Column(DateTime, default=datetime.now(), nullable=False)
     description = db.Column(Text, nullable=False)
     #0 not delete 1 is deleted
