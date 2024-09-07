@@ -49,7 +49,7 @@ def group_admin_required(func):
         user_id = request.args.get("userId")
         group_code = request.args.get("code")
         current_user_role_list = User.get_role_list_parse(session[f"{user_id}"])
-        if ("ALL-ADMIN" or f"{group_code}-A" or f"{group_code}-B") in current_user_role_list:
+        if ("ALL-ADMIN" in current_user_role_list) or (f"{group_code}-A" in current_user_role_list) or (f"{group_code}-B" in current_user_role_list):
             return func(*args, **kwargs)
         else:
             return jsonify({"code": 500, "data": "", "message": "unauthorized"})
